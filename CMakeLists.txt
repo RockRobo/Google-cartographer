@@ -377,6 +377,12 @@ configure_package_config_file(
   INSTALL_DESTINATION ${CMAKE_INSTALL_PREFIX}/share/cartographer
 )
 
+write_basic_package_version_file(
+        ${PROJECT_BINARY_DIR}/cmake/cartographer/cartographer-config-version.cmake
+        VERSION 2.0.0
+        COMPATIBILITY SameMajorVersion
+)
+
 install(
   EXPORT CartographerExport
   DESTINATION share/cartographer/cmake/
@@ -385,5 +391,6 @@ install(
 
 install(
   FILES ${PROJECT_BINARY_DIR}/cmake/cartographer/cartographer-config.cmake
+        ${PROJECT_BINARY_DIR}/cmake/cartographer/cartographer-config-version.cmake
   DESTINATION share/cartographer/
 )
