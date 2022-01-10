@@ -43,15 +43,16 @@ class TSDFRangeDataInserter2D : public RangeDataInserterInterface {
   // until 'truncation_distance' behind hit are updated. Otherwise, only the
   // cells within 'truncation_distance' around hit are updated.
   virtual void Insert(const sensor::RangeData& range_data,
-                      GridInterface* grid) const override;
+                      GridInterface* grid) override;
 
  private:
   void InsertHit(const proto::TSDFRangeDataInserterOptions2D& options,
                  const Eigen::Vector2f& hit, const Eigen::Vector2f& origin,
-                 float normal, TSDF2D* tsdf) const;
+                 float normal, TSDF2D* tsdf);
   void UpdateCell(const Eigen::Array2i& cell, float update_sdf,
                   float update_weight, TSDF2D* tsdf) const;
   const proto::TSDFRangeDataInserterOptions2D options_;
+  std::vector<Eigen::Array2i> ray_mask_;
 };
 
 }  // namespace mapping

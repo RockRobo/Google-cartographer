@@ -52,7 +52,8 @@ void GrowAsNeeded(const sensor::RangeData& range_data,
 void CastRays(const sensor::RangeData& range_data,
               const std::vector<uint16>& hit_table,
               const std::vector<uint16>& miss_table,
-              const bool insert_free_space, ProbabilityGrid* probability_grid) {
+              const bool insert_free_space, ProbabilityGrid* probability_grid,
+              std::vector<Eigen::Array2i>& pixel_mask) {
   GrowAsNeeded(range_data, probability_grid);
 
   const MapLimits& limits = probability_grid->limits();
@@ -77,19 +78,17 @@ void CastRays(const sensor::RangeData& range_data,
 
   // Now add the misses.
   for (const Eigen::Array2i& end : ends) {
-    std::vector<Eigen::Array2i> ray =
-        RayToPixelMask(begin, end, kSubpixelScale);
-    for (const Eigen::Array2i& cell_index : ray) {
+    RayToPixelMask(begin, end, kSubpixelScale, pixel_mask);
+    for (const Eigen::Array2i& cell_index : pixel_mask) {
       probability_grid->ApplyLookupTable(cell_index, miss_table);
     }
   }
 
   // Finally, compute and add empty rays based on misses in the range data.
   for (const sensor::RangefinderPoint& missing_echo : range_data.misses) {
-    std::vector<Eigen::Array2i> ray = RayToPixelMask(
-        begin, superscaled_limits.GetCellIndex(missing_echo.position.head<2>()),
-        kSubpixelScale);
-    for (const Eigen::Array2i& cell_index : ray) {
+    RayToPixelMask(begin, superscaled_limits.GetCellIndex(missing_echo.position.head<2>()),
+        kSubpixelScale, pixel_mask);
+    for (const Eigen::Array2i& cell_index : pixel_mask) {
       probability_grid->ApplyLookupTable(cell_index, miss_table);
     }
   }
@@ -119,16 +118,18 @@ ProbabilityGridRangeDataInserter2D::ProbabilityGridRangeDataInserter2D(
       hit_table_(ComputeLookupTableToApplyCorrespondenceCostOdds(
           Odds(options.hit_probability()))),
       miss_table_(ComputeLookupTableToApplyCorrespondenceCostOdds(
-          Odds(options.miss_probability()))) {}
+          Odds(options.miss_probability()))) {
+    pixel_mask_.reserve(3000);
+}
 
 void ProbabilityGridRangeDataInserter2D::Insert(
-    const sensor::RangeData& range_data, GridInterface* const grid) const {
+    const sensor::RangeData& range_data, GridInterface* const grid) {
   ProbabilityGrid* const probability_grid = static_cast<ProbabilityGrid*>(grid);
   CHECK(probability_grid != nullptr);
   // By not finishing the update after hits are inserted, we give hits priority
   // (i.e. no hits will be ignored because of a miss in the same cell).
   CastRays(range_data, hit_table_, miss_table_, options_.insert_free_space(),
-           probability_grid);
+             probability_grid, pixel_mask_);
   probability_grid->FinishUpdate();
 }
 

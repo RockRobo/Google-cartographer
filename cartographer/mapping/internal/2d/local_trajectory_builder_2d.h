@@ -86,7 +86,7 @@ class LocalTrajectoryBuilder2D {
       const sensor::RangeData& range_data) const;
   std::unique_ptr<InsertionResult> InsertIntoSubmap(
       common::Time time, const sensor::RangeData& range_data_in_local,
-      const sensor::PointCloud& filtered_gravity_aligned_point_cloud,
+      const sensor::RangeData& gravity_aligned_range_data,
       const transform::Rigid3d& pose_estimate,
       const Eigen::Quaterniond& gravity_alignment);
 
@@ -94,7 +94,7 @@ class LocalTrajectoryBuilder2D {
   // observed pose, or nullptr on failure.
   std::unique_ptr<transform::Rigid2d> ScanMatch(
       common::Time time, const transform::Rigid2d& pose_prediction,
-      const sensor::PointCloud& filtered_gravity_aligned_point_cloud);
+      const sensor::RangeData& gravity_aligned_range_data);
 
   // Lazily constructs a PoseExtrapolator.
   void InitializeExtrapolator(common::Time time);

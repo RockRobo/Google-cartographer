@@ -48,12 +48,13 @@ class ProbabilityGridRangeDataInserter2D : public RangeDataInserterInterface {
 
   // Inserts 'range_data' into 'probability_grid'.
   virtual void Insert(const sensor::RangeData& range_data,
-                      GridInterface* grid) const override;
+                      GridInterface* grid)override;
 
  private:
   const proto::ProbabilityGridRangeDataInserterOptions2D options_;
   const std::vector<uint16> hit_table_;
   const std::vector<uint16> miss_table_;
+  std::vector<Eigen::Array2i> pixel_mask_;
 };
 
 }  // namespace mapping

@@ -136,7 +136,7 @@ void Submap2D::ToResponseProto(
 
 void Submap2D::InsertRangeData(
     const sensor::RangeData& range_data,
-    const RangeDataInserterInterface* range_data_inserter) {
+    RangeDataInserterInterface* range_data_inserter) {
   CHECK(grid_);
   CHECK(!insertion_finished());
   range_data_inserter->Insert(range_data, grid_.get());

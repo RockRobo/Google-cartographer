@@ -64,7 +64,7 @@ LocalTrajectoryBuilder2D::TransformToGravityAlignedFrameAndFilter(
 
 std::unique_ptr<transform::Rigid2d> LocalTrajectoryBuilder2D::ScanMatch(
     const common::Time time, const transform::Rigid2d& pose_prediction,
-    const sensor::PointCloud& filtered_gravity_aligned_point_cloud) {
+    const sensor::RangeData& gravity_aligned_range_data) {
   if (active_submaps_.submaps().empty()) {
     return absl::make_unique<transform::Rigid2d>(pose_prediction);
   }
@@ -73,6 +73,13 @@ std::unique_ptr<transform::Rigid2d> LocalTrajectoryBuilder2D::ScanMatch(
   // The online correlative scan matcher will refine the initial estimate for
   // the Ceres scan matcher.
   transform::Rigid2d initial_ceres_pose = pose_prediction;
+
+  const sensor::PointCloud filtered_gravity_aligned_point_cloud =
+      sensor::AdaptiveVoxelFilter(gravity_aligned_range_data.returns,
+                                  options_.adaptive_voxel_filter_options());
+  if (filtered_gravity_aligned_point_cloud.empty()) {
+    return nullptr;
+  }
 
   if (options_.use_online_correlative_scan_matching()) {
     const double score = real_time_correlative_scan_matcher_.Match(
@@ -225,16 +232,9 @@ LocalTrajectoryBuilder2D::AddAccumulatedRangeData(
   const transform::Rigid2d pose_prediction = transform::Project2D(
       non_gravity_aligned_pose_prediction * gravity_alignment.inverse());
 
-  const sensor::PointCloud& filtered_gravity_aligned_point_cloud =
-      sensor::AdaptiveVoxelFilter(gravity_aligned_range_data.returns,
-                                  options_.adaptive_voxel_filter_options());
-  if (filtered_gravity_aligned_point_cloud.empty()) {
-    return nullptr;
-  }
-
   // local map frame <- gravity-aligned frame
   std::unique_ptr<transform::Rigid2d> pose_estimate_2d =
-      ScanMatch(time, pose_prediction, filtered_gravity_aligned_point_cloud);
+      ScanMatch(time, pose_prediction, gravity_aligned_range_data);
   if (pose_estimate_2d == nullptr) {
     LOG(WARNING) << "Scan matching failed.";
     return nullptr;
@@ -247,7 +247,7 @@ LocalTrajectoryBuilder2D::AddAccumulatedRangeData(
       TransformRangeData(gravity_aligned_range_data,
                          transform::Embed3D(pose_estimate_2d->cast<float>()));
   std::unique_ptr<InsertionResult> insertion_result = InsertIntoSubmap(
-      time, range_data_in_local, filtered_gravity_aligned_point_cloud,
+      time, range_data_in_local, gravity_aligned_range_data,
       pose_estimate, gravity_alignment.rotation());
 
   const auto wall_time = std::chrono::steady_clock::now();
@@ -279,7 +279,7 @@ LocalTrajectoryBuilder2D::AddAccumulatedRangeData(
 std::unique_ptr<LocalTrajectoryBuilder2D::InsertionResult>
 LocalTrajectoryBuilder2D::InsertIntoSubmap(
     const common::Time time, const sensor::RangeData& range_data_in_local,
-    const sensor::PointCloud& filtered_gravity_aligned_point_cloud,
+    const sensor::RangeData& gravity_aligned_range_data,
     const transform::Rigid3d& pose_estimate,
     const Eigen::Quaterniond& gravity_alignment) {
   if (motion_filter_.IsSimilar(time, pose_estimate)) {
@@ -287,6 +287,14 @@ LocalTrajectoryBuilder2D::InsertIntoSubmap(
   }
   std::vector<std::shared_ptr<const Submap2D>> insertion_submaps =
       active_submaps_.InsertRangeData(range_data_in_local);
+
+  const sensor::PointCloud& filtered_gravity_aligned_point_cloud =
+      sensor::AdaptiveVoxelFilter(gravity_aligned_range_data.returns,
+                                  options_.loop_closure_adaptive_voxel_filter_options());
+  if (filtered_gravity_aligned_point_cloud.empty()) {
+    return nullptr;
+  }
+
   return absl::make_unique<InsertionResult>(InsertionResult{
       std::make_shared<const TrajectoryNode::Data>(TrajectoryNode::Data{
           time,

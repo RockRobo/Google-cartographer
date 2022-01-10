@@ -31,19 +31,20 @@ bool isEqual(const Eigen::Array2i& lhs, const Eigen::Array2i& rhs) {
 // 'scaled_begin' and 'scaled_end'. 'scaled_begin' and 'scaled_end' are scaled
 // by 'subpixel_scale'. 'scaled_begin' and 'scaled_end' are expected to be
 // greater than zero. Return values are in pixels and not scaled.
-std::vector<Eigen::Array2i> RayToPixelMask(const Eigen::Array2i& scaled_begin,
+void RayToPixelMask(const Eigen::Array2i& scaled_begin,
                                            const Eigen::Array2i& scaled_end,
-                                           int subpixel_scale) {
+                                           int subpixel_scale,
+                                           std::vector<Eigen::Array2i>& pixel_mask) {
   // For simplicity, we order 'scaled_begin' and 'scaled_end' by their x
   // coordinate.
   if (scaled_begin.x() > scaled_end.x()) {
-    return RayToPixelMask(scaled_end, scaled_begin, subpixel_scale);
+    return RayToPixelMask(scaled_end, scaled_begin, subpixel_scale, pixel_mask);
   }
 
   CHECK_GE(scaled_begin.x(), 0);
   CHECK_GE(scaled_begin.y(), 0);
   CHECK_GE(scaled_end.y(), 0);
-  std::vector<Eigen::Array2i> pixel_mask;
+  pixel_mask.resize(0);
   // Special case: We have to draw a vertical line in full pixels, as
   // 'scaled_begin' and 'scaled_end' have the same full pixel x coordinate.
   if (scaled_begin.x() / subpixel_scale == scaled_end.x() / subpixel_scale) {
@@ -56,7 +57,7 @@ std::vector<Eigen::Array2i> RayToPixelMask(const Eigen::Array2i& scaled_begin,
     for (; current.y() <= end_y; ++current.y()) {
       if (!isEqual(pixel_mask.back(), current)) pixel_mask.push_back(current);
     }
-    return pixel_mask;
+    return;
   }
 
   const int64 dx = scaled_end.x() - scaled_begin.x();
@@ -122,7 +123,7 @@ std::vector<Eigen::Array2i> RayToPixelMask(const Eigen::Array2i& scaled_begin,
     }
     CHECK_NE(sub_y, denominator);
     CHECK_EQ(current.y(), scaled_end.y() / subpixel_scale);
-    return pixel_mask;
+    return;
   }
 
   // Same for lines non-ascending in y coordinates.
@@ -152,7 +153,6 @@ std::vector<Eigen::Array2i> RayToPixelMask(const Eigen::Array2i& scaled_begin,
   }
   CHECK_NE(sub_y, 0);
   CHECK_EQ(current.y(), scaled_end.y() / subpixel_scale);
-  return pixel_mask;
 }
 
 }  // namespace mapping

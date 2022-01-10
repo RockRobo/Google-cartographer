@@ -58,7 +58,7 @@ class Submap2D : public Submap {
   // Insert 'range_data' into this submap using 'range_data_inserter'. The
   // submap must not be finished yet.
   void InsertRangeData(const sensor::RangeData& range_data,
-                       const RangeDataInserterInterface* range_data_inserter);
+                       RangeDataInserterInterface* range_data_inserter);
   void Finish();
 
  private:

@@ -122,14 +122,16 @@ proto::TSDFRangeDataInserterOptions2D CreateTSDFRangeDataInserterOptions2D(
 
 TSDFRangeDataInserter2D::TSDFRangeDataInserter2D(
     const proto::TSDFRangeDataInserterOptions2D& options)
-    : options_(options) {}
+    : options_(options) {
+  ray_mask_.reserve(3000);
+}
 
 // Casts a ray from origin towards hit for each hit in range data.
 // If 'options.update_free_space' is 'true', all cells along the ray
 // until 'truncation_distance' behind hit are updated. Otherwise, only the cells
 // within 'truncation_distance' around hit are updated.
 void TSDFRangeDataInserter2D::Insert(const sensor::RangeData& range_data,
-                                     GridInterface* grid) const {
+                                     GridInterface* grid) {
   const float truncation_distance =
       static_cast<float>(options_.truncation_distance());
   TSDF2D* tsdf = static_cast<TSDF2D*>(grid);
@@ -167,7 +169,7 @@ void TSDFRangeDataInserter2D::Insert(const sensor::RangeData& range_data,
 void TSDFRangeDataInserter2D::InsertHit(
     const proto::TSDFRangeDataInserterOptions2D& options,
     const Eigen::Vector2f& hit, const Eigen::Vector2f& origin, float normal,
-    TSDF2D* tsdf) const {
+    TSDF2D* tsdf) {
   const Eigen::Vector2f ray = hit - origin;
   const float range = ray.norm();
   const float truncation_distance =
@@ -180,8 +182,8 @@ void TSDFRangeDataInserter2D::InsertHit(
   const Eigen::Vector2f ray_end = origin + (1.0f + truncation_ratio) * ray;
   std::pair<Eigen::Array2i, Eigen::Array2i> superscaled_ray =
       SuperscaleRay(ray_begin, ray_end, tsdf);
-  std::vector<Eigen::Array2i> ray_mask = RayToPixelMask(
-      superscaled_ray.first, superscaled_ray.second, kSubpixelScale);
+  ray_mask_.resize(0);
+  RayToPixelMask(superscaled_ray.first, superscaled_ray.second, kSubpixelScale,ray_mask_);
 
   // Precompute weight factors.
   float weight_factor_angle_ray_normal = 1.f;
@@ -201,7 +203,7 @@ void TSDFRangeDataInserter2D::InsertHit(
   }
 
   // Update Cells.
-  for (const Eigen::Array2i& cell_index : ray_mask) {
+  for (const Eigen::Array2i& cell_index : ray_mask_) {
     if (tsdf->CellIsUpdated(cell_index)) continue;
     Eigen::Vector2f cell_center = tsdf->limits().GetCellCenter(cell_index);
     float distance_cell_to_origin = (cell_center - origin).norm();
